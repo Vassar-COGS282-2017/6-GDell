@@ -1,9 +1,9 @@
-source('load-mnist-data.R') # run this once, and then comment out to save processing time.
+# source('load-mnist-data.R') # run this once, and then comment out to save processing time.
 
 n.inputs <- 784 # The input images are 28x28, for a total of 784 pixels
-n.hidden <- 30 # Number of hidden layer nodes. You can adjust this parameter once you get the network working.
+n.hidden <- 50 # Number of hidden layer nodes. You can adjust this parameter once you get the network working.
 n.output <- 10 # Number of output nodes. Needs to be 10. This is coarse coding the category--each node corresponds to a digit (0-9).
-learning.rate <- 0.2 # Learning rate parameter for backprop. You can adjust this.
+learning.rate <- 0.2# Learning rate parameter for backprop. You can adjust this.
 
 # The full data set has 60,000 training examples and 10,000 test examples. Running the network on all of these
 # can take several minutes at a minimum. To speed up development and testing, we'll randomly sample a subset
@@ -24,7 +24,7 @@ temp <- c()
 
 count <- 1
 for(var in -10:10) {
-  temp[count] <- var 
+  temp[count] <- sigmoid.activation(var)
   count <- count + 1
 }
 
@@ -47,8 +47,12 @@ hidden.to.output.weights <- matrix(rnorm(n.hidden*n.output,mean=0,sd=0.1), nrow=
 # Don't forget to use the sigmoid.activation function created above.
 forward.pass <- function(input){
   # input.to.hidden.weights, hidden.to.output.weights
-  hidden.layer.activation <- sigmoid.activation(input * input.to.hidden.weights)
-  output.layer.activation <- sigmoid.activation(hidden.layer.activation * hidden.to.output.weights)
+  hidden.layer.activation <- sigmoid.activation(input) * input.to.hidden.weights
+  # print(hidden.layer.activation)
+  # hidden.layer.activation <- sigmoid.activation(hidden.layer.activation)
+  # print(hidden.layer.activation)
+  output.layer.activation <- sigmoid.activation(hidden.layer.activation) * as.vector(hidden.to.output.weights)
+  # output.layer.activation <- sigmoid.activation(output.layer.activation)
   return(list(hidden=hidden.layer.activation, output=output.layer.activation))
 }
 
@@ -88,6 +92,7 @@ backprop <- function(input, target){
   # Step 3. Find the error on the output units. We can find the error just like we did 
   # with the delta rule. Just subtract the actual output from the desired output.
   output.error <- target - output.activation
+  # print(paste("error: ", output.error))
   
   # Step 4. We need to multiply the error for a node (an element in the output.error vector)
   # by the derivative of the activation function for the node. The activation function is the
@@ -101,7 +106,7 @@ backprop <- function(input, target){
   # Step 5. Find the change in the hidden to output weights by applying the delta rule, using the
   # weighted error instead of the error.
   for(o in 1:n.output){
-    delta.hidden.to.output.weights[,o] <- learning.rate * output.weighted.error * output.activation
+    delta.hidden.to.output.weights[,o] <- learning.rate * output.weighted.error[o] * output.activation[o]
   }
     # DELTA RULE
    # learning.rate * error.in.j * activation.of.i
@@ -114,7 +119,7 @@ backprop <- function(input, target){
   # is strongly connected to an output node, then it contributed a lot to the error of that node. If
   # a hidden node has almost no connection (weight near 0), then it contributed very little to the
   # error of the node.
-  hidden.error <- output.error * hidden.to.output.weights
+  hidden.error <- output.error * as.vector(hidden.to.output.weights)
   
   # Step 7. Just like the output layer, we need to calculate the weighted error for the hidden nodes.
   hidden.slope <- hidden.activation * (1 - hidden.activation)
@@ -122,7 +127,7 @@ backprop <- function(input, target){
   
   # Step 8. Apply the delta rule using the weighted errors.
   for(h in 1:n.hidden){
-    delta.input.to.hidden.weights[,h] <- learning.rate * hidden.weighted.error * hidden.activation
+    delta.input.to.hidden.weights[,h] <- learning.rate * hidden.weighted.error[h] * hidden.activation[h]
   }
   
   # Step 9. Change the actual weights by the delta amount.
@@ -136,7 +141,7 @@ backprop <- function(input, target){
 # This function takes an input vector and calculates the error of the output
 # We can use this to track the progress of the network over time.
 test.pattern <- function(input, target){
-  activation <- forward.pass(input, input.to.hidden.weights, hidden.to.output.weights)
+  activation <- forward.pass(input)
   rmse <- sqrt(mean((target-activation$output)^2))
   return(rmse)
 }
@@ -151,7 +156,6 @@ classification.correct <- function(input, target){
   maxIndexTarget <- which.max(target)
   
   if(maxIndexInput == maxIndexTarget) {
-
     return(TRUE)
   } else {
     return(FALSE)
@@ -161,7 +165,7 @@ classification.correct <- function(input, target){
 
 # This function runs a single epoch, based on the epoch.train.size and epoch.test.size parameters
 # at the top of this file.
-epoch <- function(epoch.train.size, epoch.test.size){
+epoch <- function(){
   for(t in sample(60000, epoch.train.size)){
     weights <- backprop(trainData[t,], trainLabels[t,])
     input.to.hidden.weights <- weights$input.to.hidden.weights
@@ -192,9 +196,9 @@ batch <- function(epochs){
 }
 
 # Uncomment these lines when you are ready to test the code.
-# result <- batch(300)  # 300 epochs should be enough to reach >80% accuracy.
-# plot(result$accuracy) # plot the accuracy of the network over training (should increase).
-# plot(result$error) # plot the error at the output layer over time (should decrease).
+result <- batch(300)  # 300 epochs should be enough to reach >80% accuracy.
+plot(result$accuracy) # plot the accuracy of the network over training (should increase).
+plot(result$error) # plot the error at the output layer over time (should decrease).
 
 # Try adjusting various parameters of the network (number of hidden layer nodes, learning rate) to see if you can improve learning. 
 
