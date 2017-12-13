@@ -1,9 +1,9 @@
-# source('load-mnist-data.R') # run this once, and then comment out to save processing time.
+#source('load-mnist-data.R') # run this once, and then comment out to save processing time.
 
 n.inputs <- 784 # The input images are 28x28, for a total of 784 pixels
-n.hidden <- 50 # Number of hidden layer nodes. You can adjust this parameter once you get the network working.
+n.hidden <- 40 # Number of hidden layer nodes. You can adjust this parameter once you get the network working.
 n.output <- 10 # Number of output nodes. Needs to be 10. This is coarse coding the category--each node corresponds to a digit (0-9).
-learning.rate <- 0.2# Learning rate parameter for backprop. You can adjust this.
+learning.rate <- 0.5# Learning rate parameter for backprop. You can adjust this.
 
 # The full data set has 60,000 training examples and 10,000 test examples. Running the network on all of these
 # can take several minutes at a minimum. To speed up development and testing, we'll randomly sample a subset
@@ -20,15 +20,15 @@ sigmoid.activation <- function(x){
 
 # Add some code to visualize the sigmoid activation function from x=-10 to x=10.
 
-temp <- c()
+sigmoidcurve <- c()
 
 count <- 1
 for(var in -10:10) {
-  temp[count] <- sigmoid.activation(var)
+  sigmoidcurve[count] <- sigmoid.activation(var)
   count <- count + 1
 }
 
-plot(temp)
+plot(sigmoidcurve)
 
 # Initializing the matrices to hold the connection weights.
 # We'll create one matrix for the weights from the input to hidden layer, and another for the weights from the 
@@ -46,12 +46,58 @@ hidden.to.output.weights <- matrix(rnorm(n.hidden*n.output,mean=0,sd=0.1), nrow=
 # job is to create the hidden.layer and output.layer variables in the appropriate way.
 # Don't forget to use the sigmoid.activation function created above.
 forward.pass <- function(input){
+  # print(input)
+  # print(paste("sigmoid input: ", sigmoid.activation(input)))
+  # sigIn <- sigmoid.activation(input)
+
+  hidden.layer.activation <- c()
+
+  count <- 1
+  for(col in 1:ncol(input.to.hidden.weights)) {
+     # allInputTotal <- 0
+    # for(item in 1:nrow(input.to.hidden.weights)) {
+
+    #   # print(paste("current weight: ",input.to.hidden.weights[item,col] ))
+    #   # print(paste("Current input: ", input[count]))
+
+    #   allInputTotal <- allInputTotal + input.to.hidden.weights[item,col] * input[count]
+    #   # print(allInputTotal)
+    #   count <- count + 1 
+    # }
+
+    allInputTotal <- input.to.hidden.weights[ ,col] * input
+
+    allInputTotal <- sum(allInputTotal)
+
+    hidden.layer.activation[col] <- sigmoid.activation(allInputTotal)
+    # count <- 1
+  }
+
+    # print(hidden.layer.activation)
+    # print('\n')
+
+
   # input.to.hidden.weights, hidden.to.output.weights
-  hidden.layer.activation <- sigmoid.activation(input) * input.to.hidden.weights
+  # hidden.layer.activation <- signmoid.activation(input * input.to.hidden.weights)
   # print(hidden.layer.activation)
-  # hidden.layer.activation <- sigmoid.activation(hidden.layer.activation)
+  output.layer.activation <- c()
+
+  # hidden.layer.activationTemp <- sigmoid.activation(hidden.layer.activation)
+  count <- 1
+  for(h in 1:ncol(hidden.to.output.weights)){
+    # allInputTotal <- 0
+    allInputTotal <- hidden.to.output.weights[,h] * hidden.layer.activation
+
+    allInputTotal <- sum(allInputTotal)
+
+    output.layer.activation[h] <- sigmoid.activation(allInputTotal)
+  }
+    
+  # print(paste("OUTPUT layer: ", output.layer.activation))
+
+
   # print(hidden.layer.activation)
-  output.layer.activation <- sigmoid.activation(hidden.layer.activation) * as.vector(hidden.to.output.weights)
+  # output.layer.activation <-  as.vector(hidden.layer.activationTemp) * as.vector(hidden.to.output.weights)
   # output.layer.activation <- sigmoid.activation(output.layer.activation)
   return(list(hidden=hidden.layer.activation, output=output.layer.activation))
 }
@@ -73,15 +119,15 @@ forward.pass <- function(input){
 # terms for the hidden layer units. We know the error for the output, but need to back-propogate this error to the hidden layer.
 # I'll describe how this works below.
 
-backprop <- function(input, target){
+backprop <- function(input, target, x, y){
   
   # Step 1. Because we are going to modify the weights in stages, we need to create
   # copies of the weights so that we don't overwrite the original weights before we are
   # done with them. Really, all we need are matrices of the right size to hold the delta
   # (change in) weights, but we can get a matrix of the right size by copying the weight
   # matrices. We'll overwrite all the values before we are done.
-  delta.hidden.to.output.weights <- hidden.to.output.weights
-  delta.input.to.hidden.weights <- input.to.hidden.weights
+  delta.hidden.to.output.weights <- y
+  delta.input.to.hidden.weights <- x
   
   # Step 2. Calculate the forward pass on the network. This gets us the activity of the
   # hidden and output layers for a particular set of inputs.
@@ -119,7 +165,7 @@ backprop <- function(input, target){
   # is strongly connected to an output node, then it contributed a lot to the error of that node. If
   # a hidden node has almost no connection (weight near 0), then it contributed very little to the
   # error of the node.
-  hidden.error <- output.error * as.vector(hidden.to.output.weights)
+  hidden.error <- output.weighted.error * as.vector(hidden.to.output.weights)
   
   # Step 7. Just like the output layer, we need to calculate the weighted error for the hidden nodes.
   hidden.slope <- hidden.activation * (1 - hidden.activation)
@@ -140,7 +186,7 @@ backprop <- function(input, target){
 
 # This function takes an input vector and calculates the error of the output
 # We can use this to track the progress of the network over time.
-test.pattern <- function(input, target){
+test.pattern <- function(input, target, x, y){
   activation <- forward.pass(input)
   rmse <- sqrt(mean((target-activation$output)^2))
   return(rmse)
@@ -152,10 +198,27 @@ test.pattern <- function(input, target){
 # output of the network as an identification of the digit.
 classification.correct <- function(input, target){
 
-  maxIndexInput <- which.max(input)
+  # print(target)
+  forwardResult <- forward.pass(input)
+
+
+  outputActiv <- forwardResult$output
+
+  maxIndexOutput <- which.max(outputActiv)
+  # print(maxIndexInput)
+
+
+  # tempArray <- c()
+  # for(var in 1:ncol(target)) {
+  #   temp <- sum(target[,var])
+  #   tempArray[var] <- temp
+  # }
+
   maxIndexTarget <- which.max(target)
+  # print(maxIndexTarget)
   
-  if(maxIndexInput == maxIndexTarget) {
+  if ((maxIndexOutput == maxIndexTarget)) {
+    # print("REACHED TRUE")
     return(TRUE)
   } else {
     return(FALSE)
@@ -165,40 +228,40 @@ classification.correct <- function(input, target){
 
 # This function runs a single epoch, based on the epoch.train.size and epoch.test.size parameters
 # at the top of this file.
-epoch <- function(){
+epoch <- function(input.to.hidden.weights, hidden.to.output.weights){
   for(t in sample(60000, epoch.train.size)){
-    weights <- backprop(trainData[t,], trainLabels[t,])
+    weights <- backprop(trainData[t,], trainLabels[t,], input.to.hidden.weights, hidden.to.output.weights)
     input.to.hidden.weights <- weights$input.to.hidden.weights
     hidden.to.output.weights <- weights$hidden.to.output.weights
   }
   error <- 0
   classification.acc <- 0
   for(t in sample(10000, epoch.test.size)){
-    error <- error + test.pattern(testData[t,], testLabels[t,])
+    error <- error + test.pattern(testData[t,], testLabels[t,], input.to.hidden.weights, hidden.to.output.weights)
     classification.acc <- classification.acc + classification.correct(testData[t,], testLabels[t,])
   }
   classification.acc <- classification.acc / epoch.test.size
-  return(list(error=error, classification.accuracy=classification.acc))
+  return(list(error=error, classification.accuracy=classification.acc, input.to.hidden.weights=input.to.hidden.weights, hidden.to.output.weights=hidden.to.output.weights))
 }
 
 # Run a batch of epochs
-batch <- function(epochs){
+batch <- function(epochs, input.to.hidden.weights, hidden.to.output.weights){
   errors <- numeric(epochs)
   classifications <- numeric(epochs)
   pb <- txtProgressBar(min=0, max=epochs, style=3) 
   for(i in 1:epochs){
-    result <- epoch()
+    result <- epoch(input.to.hidden.weights, hidden.to.output.weights)
     errors[i] <- result$error
     classifications[i] <- result$classification.accuracy
+    input.to.hidden.weights <- result$input.to.hidden.weights
+    hidden.to.output.weights <- result$hidden.to.output.weights
     setTxtProgressBar(pb, i)
   }
   return(data.frame(epoch=1:epochs, error=errors, accuracy=classifications))
 }
 
 # Uncomment these lines when you are ready to test the code.
-result <- batch(300)  # 300 epochs should be enough to reach >80% accuracy.
+result <- batch(300, input.to.hidden.weights, hidden.to.output.weights)  # 300 epochs should be enough to reach >80% accuracy.
 plot(result$accuracy) # plot the accuracy of the network over training (should increase).
 plot(result$error) # plot the error at the output layer over time (should decrease).
-
-# Try adjusting various parameters of the network (number of hidden layer nodes, learning rate) to see if you can improve learning. 
 
