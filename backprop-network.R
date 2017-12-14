@@ -192,8 +192,8 @@ backprop <- function(input, target, input.to.hidden, hidden.to.output){
   
   # Step 9. Change the actual weights by the delta amount.
   return(list(
-    hidden.to.output.weights=hidden.to.output.weights + delta.hidden.to.output.weights,
-    input.to.hidden.weights=input.to.hidden.weights + delta.input.to.hidden.weights
+    hidden.to.output.weights=hidden.to.output + delta.hidden.to.output.weights,
+    input.to.hidden.weights=input.to.hidden + delta.input.to.hidden.weights
   ))
   
 }
@@ -271,4 +271,5 @@ batch <- function(epochs){
 result <- batch(300)  # 300 epochs should be enough to reach >80% accuracy.
 plot(result$accuracy) # plot the accuracy of the network over training (should increase).
 plot(result$error) # plot the error at the output layer over time (should decrease)
+
 
